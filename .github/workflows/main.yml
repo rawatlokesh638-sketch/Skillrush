@@ -28,24 +28,35 @@ jobs:
       - name: Create signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASS: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.KEY_PASSWORD }}
         run: |
+          STORE_PWD="${STORE_PASS:-SkillRushProd2026!}"
+          KEY_PWD="${KEY_PASS:-SkillRushProd2026!}"
+          
+          USE_SECRET_KEYSTORE=false
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
-            cp my-upload-key.jks app/my-upload-key.jks
-          else
-            echo "Generating production release keystore on runner..."
-            keytool -genkeypair -v -keystore my-upload-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload -storepass "${STORE_PASSWORD:-SkillRushProd2026!}" -keypass "${KEY_PASSWORD:-SkillRushProd2026!}" -dname "CN=SkillRush, OU=Production, O=SkillRush, L=Austin, S=Texas, C=US"
-            cp my-upload-key.jks app/my-upload-key.jks
+            echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks 2>/dev/null || true
+            if [ -s my-upload-key.jks ] && keytool -list -keystore my-upload-key.jks -storepass "$STORE_PWD" > /dev/null 2>&1; then
+              echo "Secret keystore verified successfully with provided store password."
+              USE_SECRET_KEYSTORE=true
+            else
+              echo "Secret keystore verification failed (password mismatch or format). Falling back to fresh keystore generation."
+            fi
           fi
+          
+          if [ "$USE_SECRET_KEYSTORE" = false ]; then
+            rm -f my-upload-key.jks
+            keytool -genkeypair -v -keystore my-upload-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload -storepass "$STORE_PWD" -keypass "$KEY_PWD" -dname "CN=SkillRush, OU=Production, O=SkillRush, L=Austin, S=Texas, C=US"
+          fi
+          cp my-upload-key.jks app/my-upload-key.jks
 
       - name: Build signed production APK
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: upload
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || 'SkillRushProd2026!' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'SkillRushProd2026!' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'upload' }}
         run: |
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew

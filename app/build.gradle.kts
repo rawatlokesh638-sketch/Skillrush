@@ -35,9 +35,9 @@ android {
       )
       val resolvedFile = possibleFiles.firstOrNull { it.exists() } ?: rootProject.file("my-upload-key.jks")
       storeFile = resolvedFile
-      storePassword = System.getenv("STORE_PASSWORD") ?: "SkillRushProd2026!"
-      keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
-      keyPassword = System.getenv("KEY_PASSWORD") ?: "SkillRushProd2026!"
+      storePassword = System.getenv("STORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "SkillRushProd2026!"
+      keyAlias = System.getenv("KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "upload"
+      keyPassword = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() } ?: "SkillRushProd2026!"
     }
     create("debugConfig") {
       storeFile = file("${rootDir}/debug.keystore")
