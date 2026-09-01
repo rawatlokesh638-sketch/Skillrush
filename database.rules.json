@@ -1,53 +1,15 @@
 {
   "rules": {
+    "usernames": {
+      ".read": "auth != null",
+      "$username": {
+        ".write": "auth != null"
+      }
+    },
     "users": {
+      ".read": "auth != null",
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
-        "coins": {
-          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
-        },
-        "xp": {
-          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
-        },
-        "gamesPlayed": {
-          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
-        },
-        "streak": {
-          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3650"
-        },
-        "lastUpdated": {
-          ".validate": "newData.isNumber() && newData.val() > 0"
-        },
-        "bestScores": {
-          "tapRush": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
-          },
-          "memoryFlash": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
-          },
-          "perfectAim": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
-          },
-          "numberSprint": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
-          },
-          "spotDifference": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
-          },
-          "speedRush": {
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
-          },
-          "$other": {
-            ".validate": false
-          }
-        },
-        "stats": {
-          ".validate": "newData.hasChildren()"
-        },
-        "$other": {
-          ".validate": false
-        }
+        ".write": "auth != null"
       }
     },
     "leaderboards": {
@@ -56,35 +18,7 @@
           ".read": "auth != null",
           ".indexOn": ["score"],
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid",
-            ".validate": "newData.hasChildren(['score', 'name', 'level', 'badge'])",
-            "score": {
-              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 50000"
-            },
-            "name": {
-              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 30"
-            },
-            "level": {
-              ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100"
-            },
-            "badge": {
-              ".validate": "newData.isString() && newData.val().length <= 30"
-            },
-            "gamesPlayed": {
-              ".validate": "newData.isNumber() && newData.val() >= 0"
-            },
-            "streakDays": {
-              ".validate": "newData.isNumber() && newData.val() >= 0"
-            },
-            "avatarColorHex": {
-              ".validate": "newData.isNumber()"
-            },
-            "timestamp": {
-              ".validate": "newData.isNumber()"
-            },
-            "$other": {
-              ".validate": false
-            }
+            ".write": "auth != null"
           }
         }
       }

@@ -1,6 +1,6 @@
 {
   "name": "SkillRush",
-  "description": "A mobile game with reflex, memory, and logic challenges.",
+  "description": "A fast-paced reflex and skill mobile game with a 7-day daily reward system, leaderboards, and challenges.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

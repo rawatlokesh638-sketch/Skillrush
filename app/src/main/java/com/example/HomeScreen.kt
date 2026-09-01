@@ -1,5 +1,7 @@
 package com.example
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,7 +18,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -26,9 +30,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.DailyRewardManager
 import com.example.data.LevelProgress
 import com.example.data.StreakManager
 import com.example.data.UserProfileManager
+import com.example.ui.components.DailyRewardDialog
 import com.example.ui.components.LevelBadge
 import com.example.ui.components.StreakCalendarCard
 import com.example.ui.components.XpProgressBar
@@ -51,14 +57,42 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     var selectedNavIndex by remember { mutableIntStateOf(0) }
-    
-    val coins = remember(context) { UserProfileManager.getCoins(context) }
-    val levelProgress = remember(context) { UserProfileManager.getLevelProgress(context) }
-    val playerName = remember(context) { UserProfileManager.getPlayerName(context) }
-    val streakDays = remember(context) { UserProfileManager.getStreakDays(context) }
-    val streakInfo = remember(context) { StreakManager.getStreakInfo(context) }
-    val bestScore = remember(context) { UserProfileManager.getHighestOverallScore(context) }
-    val dailyInfo = remember(context) { com.example.data.DailyChallengeManager.getDailyChallengeInfo(context) }
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+
+    var showDailyRewardDialog by remember { mutableStateOf(false) }
+    var isDailyRewardAvailable by remember(refreshTrigger) {
+        mutableStateOf(DailyRewardManager.isDailyRewardAvailable(context))
+    }
+    val currentRewardDay by remember(refreshTrigger) {
+        mutableIntStateOf(DailyRewardManager.getCurrentRewardDay(context))
+    }
+
+    val coins = remember(context, refreshTrigger) { UserProfileManager.getCoins(context) }
+    val levelProgress = remember(context, refreshTrigger) { UserProfileManager.getLevelProgress(context) }
+    val playerName = remember(context, refreshTrigger) { UserProfileManager.getPlayerName(context) }
+    val streakDays = remember(context, refreshTrigger) { UserProfileManager.getStreakDays(context) }
+    val streakInfo = remember(context, refreshTrigger) { StreakManager.getStreakInfo(context) }
+    val bestScore = remember(context, refreshTrigger) { UserProfileManager.getHighestOverallScore(context) }
+    val dailyInfo = remember(context, refreshTrigger) { com.example.data.DailyChallengeManager.getDailyChallengeInfo(context) }
+
+    // Auto prompt daily reward when player logs in/arrives if available
+    LaunchedEffect(Unit) {
+        if (DailyRewardManager.isDailyRewardAvailable(context)) {
+            showDailyRewardDialog = true
+        }
+    }
+
+    if (showDailyRewardDialog) {
+        DailyRewardDialog(
+            onDismiss = {
+                showDailyRewardDialog = false
+                refreshTrigger++
+            },
+            onRewardClaimed = {
+                refreshTrigger++
+            }
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -89,11 +123,21 @@ fun HomeScreen(
                     levelProgress = levelProgress,
                     playerName = playerName,
                     coins = coins,
-                    onProfileClick = onNavigateToProfile
+                    isDailyRewardAvailable = isDailyRewardAvailable,
+                    onProfileClick = onNavigateToProfile,
+                    onDailyRewardClick = { showDailyRewardDialog = true }
                 )
             }
             item {
                 SkillRushTitleSection(streakDays = streakDays, bestScore = bestScore)
+            }
+            item {
+                // Visual Indicator for Daily Reward
+                DailyRewardHomeBanner(
+                    isRewardAvailable = isDailyRewardAvailable,
+                    currentDay = currentRewardDay,
+                    onClick = { showDailyRewardDialog = true }
+                )
             }
             item {
                 DailyChallengeCard(
@@ -127,11 +171,24 @@ fun HeaderSection(
     levelProgress: LevelProgress,
     playerName: String = "Player 1",
     coins: Int = 0,
-    onProfileClick: () -> Unit = {}
+    isDailyRewardAvailable: Boolean = false,
+    onProfileClick: () -> Unit = {},
+    onDailyRewardClick: () -> Unit = {}
 ) {
     val formattedCoins = remember(coins) {
         NumberFormat.getNumberInstance(Locale.getDefault()).format(coins)
     }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "header_gift_pulse")
+    val giftScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(700, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "gift_scale"
+    )
 
     Card(
         modifier = Modifier
@@ -189,30 +246,68 @@ fun HeaderSection(
                     }
                 }
 
-                // Coins balance pill badge
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    border = BorderStroke(1.dp, SkillRushPrimary.copy(alpha = 0.15f)),
-                    modifier = Modifier.testTag("coin_balance_badge")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    // Quick Daily Reward Gift Button with Notification Dot
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isDailyRewardAvailable) SkillRushCoinGold.copy(alpha = 0.18f) else MaterialTheme.colorScheme.secondaryContainer,
+                        border = BorderStroke(1.dp, if (isDailyRewardAvailable) SkillRushCoinGold.copy(alpha = 0.6f) else SkillRushPrimary.copy(alpha = 0.15f)),
+                        modifier = Modifier
+                            .clickable { onDailyRewardClick() }
+                            .testTag("header_daily_reward_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.MonetizationOn,
-                            contentDescription = "Coins",
-                            tint = SkillRushCoinGold,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = formattedCoins,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Box(
+                            modifier = Modifier.padding(6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CardGiftcard,
+                                contentDescription = "Daily Reward",
+                                tint = if (isDailyRewardAvailable) SkillRushCoinGold else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .then(if (isDailyRewardAvailable) Modifier.scale(giftScale) else Modifier)
+                            )
+
+                            if (isDailyRewardAvailable) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .background(Color(0xFFFF3366), CircleShape)
+                                        .align(Alignment.TopEnd)
+                                )
+                            }
+                        }
+                    }
+
+                    // Coins balance pill badge
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        border = BorderStroke(1.dp, SkillRushPrimary.copy(alpha = 0.15f)),
+                        modifier = Modifier.testTag("coin_balance_badge")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MonetizationOn,
+                                contentDescription = "Coins",
+                                tint = SkillRushCoinGold,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = formattedCoins,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
@@ -224,6 +319,158 @@ fun HeaderSection(
                 progressFraction = levelProgress.progressFraction,
                 height = 8.dp
             )
+        }
+    }
+}
+
+@Composable
+fun DailyRewardHomeBanner(
+    isRewardAvailable: Boolean,
+    currentDay: Int,
+    onClick: () -> Unit = {}
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "daily_reward_banner_pulse")
+    val pulseBorderAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "banner_border_alpha"
+    )
+    val giftBounce by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(750, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "banner_gift_bounce"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .testTag("daily_reward_home_banner"),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isRewardAvailable) Color(0xFF1E1F2A) else Color(0xFF14171E)
+        ),
+        border = BorderStroke(
+            1.5.dp,
+            if (isRewardAvailable) SkillRushCoinGold.copy(alpha = pulseBorderAlpha) else SkillRushPrimary.copy(alpha = 0.2f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isRewardAvailable) 6.dp else 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = if (isRewardAvailable) SkillRushCoinGold.copy(alpha = 0.2f) else Color(0xFF2EA043).copy(alpha = 0.15f),
+                    border = BorderStroke(
+                        1.5.dp,
+                        if (isRewardAvailable) SkillRushCoinGold.copy(alpha = 0.8f) else Color(0xFF2EA043).copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier.size(46.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isRewardAvailable) Icons.Default.CardGiftcard else Icons.Default.CheckCircle,
+                            contentDescription = "Daily Reward",
+                            tint = if (isRewardAvailable) SkillRushCoinGold else Color(0xFF2EA043),
+                            modifier = Modifier
+                                .size(24.dp)
+                                .then(if (isRewardAvailable) Modifier.scale(giftBounce) else Modifier)
+                        )
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = if (isRewardAvailable) "DAILY REWARD AVAILABLE!" else "DAY $currentDay REWARD CLAIMED",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Black,
+                            color = if (isRewardAvailable) SkillRushCoinGold else Color.White,
+                            letterSpacing = (-0.2).sp
+                        )
+
+                        if (isRewardAvailable) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = SkillRushCoinGold
+                            ) {
+                                Text(
+                                    text = "DAY $currentDay",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.Black,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = if (isRewardAvailable) "Tap to claim coins, XP & power-ups!" else "Streak safe! Day ${if (currentDay >= 7) 1 else currentDay + 1} unlocks tomorrow.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isRewardAvailable) Color(0xFFD0D7DE) else Color(0xFF8B949E),
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            if (isRewardAvailable) {
+                Button(
+                    onClick = onClick,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SkillRushCoinGold,
+                        contentColor = Color.Black
+                    ),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.testTag("claim_daily_reward_banner_button")
+                ) {
+                    Text(
+                        text = "CLAIM",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 12.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onClick,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFF30363D)),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF8B949E))
+                ) {
+                    Text(
+                        text = "CALENDAR",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp
+                    )
+                }
+            }
         }
     }
 }

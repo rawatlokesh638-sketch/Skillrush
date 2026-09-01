@@ -52,6 +52,8 @@ object UserProfileManager {
     private const val KEY_LAST_PLAYED_DATE = "user_last_played_date"
     private const val KEY_PLAYER_NAME = "user_player_name"
     private const val KEY_HAS_SETUP_USERNAME = "user_has_setup_username"
+    private const val KEY_CACHED_UID = "user_cached_uid"
+    private const val KEY_USER_PASSWORD = "user_account_password"
     private const val KEY_TOTAL_GAMES_PLAYED = "user_total_games_played"
     private const val KEY_PROCESSED_SESSIONS = "user_processed_session_tokens"
 
@@ -187,30 +189,41 @@ object UserProfileManager {
     }
 
     fun hasSetupUsername(context: Context): Boolean {
-        val name = getPlayerName(context)
         val isExplicitlySet = getPrefs(context).getBoolean(KEY_HAS_SETUP_USERNAME, false)
-        return isExplicitlySet && name != "Player 1" && name.isNotEmpty()
+        val uid = getPrefs(context).getString(KEY_CACHED_UID, null)
+        val name = getPlayerName(context)
+        return isExplicitlySet && !uid.isNullOrEmpty() && name != "Player 1" && name.isNotEmpty()
     }
 
-    fun markUsernameSetupComplete(context: Context, name: String) {
-        setPlayerName(context, name)
-        getPrefs(context).edit().putBoolean(KEY_HAS_SETUP_USERNAME, true).apply()
+    fun saveUserAccount(context: Context, uid: String, username: String, password: String) {
+        val cleanName = username.trim().ifEmpty { "Player 1" }
+        getPrefs(context).edit().apply {
+            putString(KEY_CACHED_UID, uid)
+            putString(KEY_PLAYER_NAME, cleanName)
+            putString(KEY_USER_PASSWORD, password)
+            putBoolean(KEY_HAS_SETUP_USERNAME, true)
+            apply()
+        }
         CloudSyncManager.onLocalDataUpdated(context)
     }
 
+    fun getUserPassword(context: Context): String {
+        return getPrefs(context).getString(KEY_USER_PASSWORD, "") ?: ""
+    }
+
     fun getUserUid(context: Context): String {
+        val cachedUid = getPrefs(context).getString(KEY_CACHED_UID, null)
+        if (!cachedUid.isNullOrEmpty()) {
+            return cachedUid
+        }
         val authUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
         return if (!authUid.isNullOrEmpty()) {
+            getPrefs(context).edit().putString(KEY_CACHED_UID, authUid).apply()
             authUid
         } else {
-            val cachedUid = getPrefs(context).getString("user_cached_uid", null)
-            if (cachedUid != null) {
-                cachedUid
-            } else {
-                val newUid = "UID_" + java.util.UUID.randomUUID().toString().take(8)
-                getPrefs(context).edit().putString("user_cached_uid", newUid).apply()
-                newUid
-            }
+            val newUid = "SR_" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase()
+            getPrefs(context).edit().putString(KEY_CACHED_UID, newUid).apply()
+            newUid
         }
     }
 

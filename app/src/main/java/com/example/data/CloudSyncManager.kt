@@ -61,8 +61,10 @@ object CloudSyncManager {
     }
 
     private fun syncData(context: Context) {
-        val user = FirebaseAuth.getInstance().currentUser ?: return
-        val dbRef = FirebaseDatabase.getInstance().getReference("users/${user.uid}")
+        if (!UserProfileManager.hasSetupUsername(context)) return
+        val uid = UserProfileManager.getUserUid(context)
+        if (uid.isBlank()) return
+        val dbRef = FirebaseDatabase.getInstance().getReference("users/$uid")
         dbRef.keepSynced(true) // Keep data synced for offline use
 
         // Run transaction to safely merge
@@ -88,6 +90,8 @@ object CloudSyncManager {
                         return Transaction.abort()
                     }
                     
+                    currentData.child("uid").value = uid
+                    currentData.child("username").value = UserProfileManager.getPlayerName(context)
                     currentData.child("coins").value = coins
                     currentData.child("xp").value = xp
                     currentData.child("gamesPlayed").value = games
@@ -100,7 +104,9 @@ object CloudSyncManager {
                     currentData.child("bestScores").child("perfectAim").value = PerfectAimScoreManager.getBestScore(context).coerceIn(0, 10000)
                     currentData.child("bestScores").child("numberSprint").value = NumberSprintScoreManager.getBestScore(context).coerceIn(0, 10000)
                     currentData.child("bestScores").child("spotDifference").value = SpotDifferenceScoreManager.getBestScore(context).coerceIn(0, 10000)
-                    currentData.child("bestScores").child("speedRush").value = SpeedRushScoreManager.getBestScore(context).coerceIn(0, 10000)
+                    currentData.child("speedRush").let {
+                        currentData.child("bestScores").child("speedRush").value = SpeedRushScoreManager.getBestScore(context).coerceIn(0, 10000)
+                    }
 
                     // Sync statistics
                     val statsMap = com.example.data.stats.StatsManager.exportStatsForCloud(context)
@@ -159,9 +165,11 @@ object CloudSyncManager {
      */
     fun onLocalDataUpdated(context: Context) {
         if (!isInitialized) return
-        val user = FirebaseAuth.getInstance().currentUser ?: return
+        if (!UserProfileManager.hasSetupUsername(context)) return
+        val uid = UserProfileManager.getUserUid(context)
+        if (uid.isBlank()) return
         val localTimestamp = UserProfileManager.getLastUpdatedTimestamp(context)
-        val dbRef = FirebaseDatabase.getInstance().getReference("users/${user.uid}")
+        val dbRef = FirebaseDatabase.getInstance().getReference("users/$uid")
 
         val coins = UserProfileManager.getCoins(context)
         val xp = UserProfileManager.getTotalXp(context)
@@ -176,6 +184,8 @@ object CloudSyncManager {
 
         dbRef.runTransaction(object : Transaction.Handler {
             override fun doTransaction(currentData: MutableData): Transaction.Result {
+                currentData.child("uid").value = uid
+                currentData.child("username").value = UserProfileManager.getPlayerName(context)
                 currentData.child("coins").value = coins
                 currentData.child("xp").value = xp
                 currentData.child("gamesPlayed").value = games
