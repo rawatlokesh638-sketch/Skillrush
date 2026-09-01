@@ -28,12 +28,21 @@ jobs:
       - name: Create signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
+            cp my-upload-key.jks app/my-upload-key.jks
+          else
+            echo "Generating production release keystore on runner..."
+            keytool -genkeypair -v -keystore my-upload-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload -storepass "${STORE_PASSWORD:-SkillRushProd2026!}" -keypass "${KEY_PASSWORD:-SkillRushProd2026!}" -dname "CN=SkillRush, OU=Production, O=SkillRush, L=Austin, S=Texas, C=US"
+            cp my-upload-key.jks app/my-upload-key.jks
+          fi
 
       - name: Build signed production APK
         env:
-          KEYSTORE_PATH: my-upload-key.jks
+          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: upload
