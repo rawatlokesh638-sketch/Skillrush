@@ -70,6 +70,10 @@ fun SkillRushApp() {
     val isOnlineState = com.example.util.rememberIsOnline()
     val isOnline = isOnlineState.value
 
+    val isBanned by com.example.data.CloudSyncManager.isUserBanned.collectAsState()
+    val banReason by com.example.data.CloudSyncManager.banReason.collectAsState()
+    val gameConfig by com.example.data.CloudSyncManager.gameConfig.collectAsState()
+
     var currentScreen by remember {
         mutableStateOf<Screen>(
             if (!com.example.data.UserProfileManager.hasSetupUsername(context)) {
@@ -86,6 +90,16 @@ fun SkillRushApp() {
                 // NetworkObserver will update automatically when connection changes
             }
         )
+        return
+    }
+
+    if (isBanned) {
+        com.example.ui.components.AccountBannedScreen(banReason = banReason)
+        return
+    }
+
+    if (gameConfig.maintenanceMode) {
+        com.example.ui.components.MaintenanceScreen(message = gameConfig.maintenanceMessage)
         return
     }
 

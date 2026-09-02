@@ -172,4 +172,26 @@ object AchievementManager {
         val statuses = getAchievementStatuses(context)
         return statuses.count { it.isUnlocked }
     }
+
+    fun exportAchievementsForCloud(context: Context): Map<String, Boolean> {
+        val prefs = getPrefs(context)
+        val map = mutableMapOf<String, Boolean>()
+        achievementsList.forEach { achievement ->
+            map[achievement.id] = prefs.getBoolean("unlocked_${achievement.id}", false)
+        }
+        return map
+    }
+
+    fun mergeCloudAchievements(context: Context, cloudMap: Map<String, Any?>) {
+        val prefs = getPrefs(context)
+        val editor = prefs.edit()
+        achievementsList.forEach { achievement ->
+            val cloudUnlocked = cloudMap[achievement.id] as? Boolean ?: false
+            val localUnlocked = prefs.getBoolean("unlocked_${achievement.id}", false)
+            if (cloudUnlocked || localUnlocked) {
+                editor.putBoolean("unlocked_${achievement.id}", true)
+            }
+        }
+        editor.apply()
+    }
 }

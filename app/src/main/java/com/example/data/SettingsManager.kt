@@ -53,6 +53,38 @@ object SettingsManager {
 
     fun setReducedMotionEnabled(context: Context, enabled: Boolean) {
         getPrefs(context).edit().putBoolean(KEY_REDUCED_MOTION, enabled).apply()
+        CloudSyncManager.onLocalDataUpdated(context)
+    }
+
+    fun exportSettingsForCloud(context: Context): Map<String, Boolean> {
+        return mapOf(
+            "soundEnabled" to isSoundEnabled(context),
+            "musicEnabled" to isMusicEnabled(context),
+            "vibrationEnabled" to isVibrationEnabled(context),
+            "notificationsEnabled" to isNotificationsEnabled(context),
+            "reducedMotionEnabled" to isReducedMotionEnabled(context)
+        )
+    }
+
+    fun mergeCloudSettings(context: Context, cloudData: Map<String, Any?>) {
+        val prefs = getPrefs(context)
+        val editor = prefs.edit()
+        if (cloudData.containsKey("soundEnabled")) {
+            editor.putBoolean(KEY_SOUND, cloudData["soundEnabled"] as? Boolean ?: true)
+        }
+        if (cloudData.containsKey("musicEnabled")) {
+            editor.putBoolean(KEY_MUSIC, cloudData["musicEnabled"] as? Boolean ?: true)
+        }
+        if (cloudData.containsKey("vibrationEnabled")) {
+            editor.putBoolean(KEY_VIBRATION, cloudData["vibrationEnabled"] as? Boolean ?: true)
+        }
+        if (cloudData.containsKey("notificationsEnabled")) {
+            editor.putBoolean(KEY_NOTIFICATIONS, cloudData["notificationsEnabled"] as? Boolean ?: true)
+        }
+        if (cloudData.containsKey("reducedMotionEnabled")) {
+            editor.putBoolean(KEY_REDUCED_MOTION, cloudData["reducedMotionEnabled"] as? Boolean ?: false)
+        }
+        editor.apply()
     }
 
     fun resetGameProgress(context: Context) {

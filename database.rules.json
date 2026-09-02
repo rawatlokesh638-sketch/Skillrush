@@ -1,5 +1,7 @@
 {
   "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
     "usernames": {
       ".read": "auth != null",
       "$username": {
@@ -9,6 +11,14 @@
     "users": {
       ".read": "auth != null",
       "$uid": {
+        ".write": "auth != null",
+        ".indexOn": ["coins", "xp", "level", "lastActive", "isBanned"]
+      }
+    },
+    "game_logs": {
+      ".read": "auth != null",
+      ".indexOn": ["uid", "timestamp", "gameId", "score"],
+      "$logId": {
         ".write": "auth != null"
       }
     },
@@ -16,11 +26,31 @@
       "$category": {
         "$timeframe": {
           ".read": "auth != null",
-          ".indexOn": ["score"],
+          ".indexOn": ["score", "timestamp"],
           "$uid": {
             ".write": "auth != null"
           }
         }
+      }
+    },
+    "tournaments": {
+      ".read": "auth != null",
+      "$tournamentId": {
+        ".write": "auth != null"
+      }
+    },
+    "announcements": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "system": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "reports": {
+      ".read": "auth != null",
+      "$reportId": {
+        ".write": "auth != null"
       }
     }
   }

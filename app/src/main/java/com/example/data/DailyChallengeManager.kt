@@ -128,7 +128,31 @@ object DailyChallengeManager {
         StreakManager.recordStreakCompletion(context)
 
         AchievementManager.checkAndUnlockAchievements(context)
+        CloudSyncManager.onLocalDataUpdated(context)
 
         return true
+    }
+
+    fun exportDailyChallengeForCloud(context: Context): Map<String, Any?> {
+        val prefs = getPrefs(context)
+        return mapOf(
+            "lastCompletedDate" to (prefs.getString(KEY_COMPLETED_DATE, "") ?: ""),
+            "lastScore" to prefs.getInt(KEY_LAST_SCORE, 0)
+        )
+    }
+
+    fun mergeCloudDailyChallenge(context: Context, cloudData: Map<String, Any?>) {
+        val prefs = getPrefs(context)
+        val cDate = cloudData["lastCompletedDate"] as? String ?: ""
+        val cScore = (cloudData["lastScore"] as? Number)?.toInt() ?: 0
+        val lDate = prefs.getString(KEY_COMPLETED_DATE, "") ?: ""
+        val lScore = prefs.getInt(KEY_LAST_SCORE, 0)
+
+        if (cDate.isNotEmpty() && cDate >= lDate) {
+            prefs.edit()
+                .putString(KEY_COMPLETED_DATE, cDate)
+                .putInt(KEY_LAST_SCORE, maxOf(lScore, cScore))
+                .apply()
+        }
     }
 }

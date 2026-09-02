@@ -399,6 +399,19 @@ object UserProfileManager {
             com.example.audio.AudioManager.playLevelUpSound(context)
         }
 
+        // Log session to Firebase for Admin Panel
+        CloudSyncManager.logGameSession(
+            context = context,
+            gameId = "game_session",
+            gameTitle = "SkillRush Challenge",
+            score = score,
+            accuracy = accuracyPercent,
+            maxCombo = maxCombo,
+            xpEarned = xpEarned,
+            coinsEarned = coinsEarned,
+            sessionToken = sessionToken
+        )
+
         val newLevelProgress = getLevelProgress(newXp)
 
         val result = RewardResult(

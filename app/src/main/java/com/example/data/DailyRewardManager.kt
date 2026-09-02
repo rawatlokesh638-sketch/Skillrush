@@ -253,15 +253,64 @@ object DailyRewardManager {
         if (amount <= 0) return
         val current = getPowerUpCount(context, type)
         getPrefs(context).edit().putInt(POWERUP_PREFIX + type.id, current + amount).apply()
+        CloudSyncManager.onLocalDataUpdated(context)
     }
 
     fun usePowerUp(context: Context, type: PowerUpType): Boolean {
         val current = getPowerUpCount(context, type)
         return if (current > 0) {
             getPrefs(context).edit().putInt(POWERUP_PREFIX + type.id, current - 1).apply()
+            CloudSyncManager.onLocalDataUpdated(context)
             true
         } else {
             false
         }
+    }
+
+    fun exportPowerUpsForCloud(context: Context): Map<String, Int> {
+        val map = mutableMapOf<String, Int>()
+        PowerUpType.entries.forEach { type ->
+            map[type.id] = getPowerUpCount(context, type)
+        }
+        return map
+    }
+
+    fun mergeCloudPowerUps(context: Context, cloudData: Map<String, Any?>) {
+        val prefs = getPrefs(context)
+        val editor = prefs.edit()
+        PowerUpType.entries.forEach { type ->
+            val cloudVal = (cloudData[type.id] as? Number)?.toInt() ?: 0
+            val localVal = prefs.getInt(POWERUP_PREFIX + type.id, 0)
+            editor.putInt(POWERUP_PREFIX + type.id, maxOf(localVal, cloudVal))
+        }
+        editor.apply()
+    }
+
+    fun exportDailyRewardForCloud(context: Context): Map<String, Any?> {
+        val prefs = getPrefs(context)
+        return mapOf(
+            "lastClaimDate" to (prefs.getString(KEY_LAST_CLAIM_DATE, "") ?: ""),
+            "streakDay" to prefs.getInt(KEY_CURRENT_STREAK_DAY, 0),
+            "totalClaims" to prefs.getInt(KEY_TOTAL_CLAIMS, 0)
+        )
+    }
+
+    fun mergeCloudDailyReward(context: Context, cloudData: Map<String, Any?>) {
+        val prefs = getPrefs(context)
+        val cLastDate = cloudData["lastClaimDate"] as? String ?: ""
+        val cStreakDay = (cloudData["streakDay"] as? Number)?.toInt() ?: 0
+        val cTotalClaims = (cloudData["totalClaims"] as? Number)?.toInt() ?: 0
+
+        val lLastDate = prefs.getString(KEY_LAST_CLAIM_DATE, "") ?: ""
+        val lStreakDay = prefs.getInt(KEY_CURRENT_STREAK_DAY, 0)
+        val lTotalClaims = prefs.getInt(KEY_TOTAL_CLAIMS, 0)
+
+        val editor = prefs.edit()
+        if (cLastDate.isNotEmpty() && cLastDate >= lLastDate) {
+            editor.putString(KEY_LAST_CLAIM_DATE, cLastDate)
+            editor.putInt(KEY_CURRENT_STREAK_DAY, maxOf(lStreakDay, cStreakDay))
+        }
+        editor.putInt(KEY_TOTAL_CLAIMS, maxOf(lTotalClaims, cTotalClaims))
+        editor.apply()
     }
 }

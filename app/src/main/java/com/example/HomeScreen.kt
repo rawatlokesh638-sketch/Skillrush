@@ -74,6 +74,8 @@ fun HomeScreen(
     val streakInfo = remember(context, refreshTrigger) { StreakManager.getStreakInfo(context) }
     val bestScore = remember(context, refreshTrigger) { UserProfileManager.getHighestOverallScore(context) }
     val dailyInfo = remember(context, refreshTrigger) { com.example.data.DailyChallengeManager.getDailyChallengeInfo(context) }
+    val activeAnnouncement by com.example.data.CloudSyncManager.activeAnnouncement.collectAsState()
+    var dismissedAnnouncementId by remember { mutableStateOf<String?>(null) }
 
     // Auto prompt daily reward when player logs in/arrives if available
     LaunchedEffect(Unit) {
@@ -127,6 +129,16 @@ fun HomeScreen(
                     onProfileClick = onNavigateToProfile,
                     onDailyRewardClick = { showDailyRewardDialog = true }
                 )
+            }
+            activeAnnouncement?.let { ann ->
+                if (dismissedAnnouncementId != ann.id) {
+                    item {
+                        com.example.ui.components.AnnouncementBanner(
+                            announcement = ann,
+                            onDismiss = { dismissedAnnouncementId = ann.id }
+                        )
+                    }
+                }
             }
             item {
                 SkillRushTitleSection(streakDays = streakDays, bestScore = bestScore)

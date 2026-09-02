@@ -44,6 +44,15 @@ fun SettingsScreen(
 
     var showResetDialog by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf<String?>(null) } // "privacy", "terms", "about"
+    var showFeedbackDialog by remember { mutableStateOf(false) }
+    var isSyncingNow by remember { mutableStateOf(false) }
+    val syncState by com.example.data.CloudSyncManager.syncState.collectAsState()
+
+    if (showFeedbackDialog) {
+        com.example.ui.components.FeedbackDialog(
+            onDismiss = { showFeedbackDialog = false }
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -271,6 +280,121 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                    }
+                }
+            }
+
+            // Cloud & Firebase Realtime Database
+            item {
+                SettingsSectionHeader(title = "Cloud & Admin Sync")
+            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, SkillRushPrimary.copy(alpha = 0.2f)),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = SkillRushPrimary.copy(alpha = 0.15f),
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.CloudSync,
+                                            contentDescription = null,
+                                            tint = SkillRushPrimary,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                                Column {
+                                    Text(
+                                        text = "Firebase Realtime Sync",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Status: $syncState (Live to Admin Panel)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                isSyncingNow = true
+                                com.example.data.CloudSyncManager.syncData(context)
+                                isSyncingNow = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SkillRushPrimary.copy(alpha = 0.15f),
+                                contentColor = SkillRushPrimary
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(0.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Force Sync Cloud Data",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Support & Feedback for Admin
+            item {
+                SettingsSectionHeader(title = "Support & Feedback")
+            }
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, SkillRushPrimary.copy(alpha = 0.2f)),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                    ) {
+                        SettingsClickableRow(
+                            icon = Icons.Default.Feedback,
+                            title = "Submit Report / Feedback",
+                            subtitle = "Directly sends your message to Admin Panel",
+                            onClick = { showFeedbackDialog = true },
+                            testTag = "support_feedback_row"
+                        )
                     }
                 }
             }
